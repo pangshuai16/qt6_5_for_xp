@@ -1,1 +1,25 @@
+# Build outputs
 Output/
+
+# Release artifacts (large zip files)
+release/
+
+# Demo projects (large, build outputs)
+demo-static/
+demo-vcltl/
+
+# Build logs
+*.log
+build-*.log
+
+# IDE/agent data
+.workbuddy/
+.vs/
+.vscode/
+*.user
+
+# Temporary files
+*.tmp
+*.bak
+*.7z
+*.zip
