@@ -579,19 +579,52 @@ if(CMAKE_VERSION VERSION_LESS "3.19.0")
     variable_watch(CMAKE_CURRENT_LIST_DIR qt_watch_current_list_dir)
 endif()
 
+# ARM64 note -----------------------------------------------------------------
+# Windows on ARM starts at Windows 10 1709 (10.0.16299): there is no XP/Vista/
+# Win7/Win8 ARM64 OS, so the "XP compatibility" part of this customization does
+# not apply to ARM64. What DOES apply is keeping the same repository/toolchain/
+# feature set as x86/x64 so that multi-arch Qt builds stay ABI/feature
+# consistent. YY-Thunks itself is supported on arm64 by upstream (Win10 target
+# only); YY-Thunks.cmake picks the arch-specific obj and silently skips when the
+# arm64 obj is not vendored in this repo.
+#
+# Two things must NOT be applied to ARM64:
+#   1. /subsystem:windows,5.01|5.02  (XP subsystem version; invalid for ARM64)
+#   2. forcing YYTHUNKS_TARGET_OS=WinXP (no arm64 obj for WinXP exists; a stale
+#      x64 obj would be picked and the link fails with
+#      LNK1112 "module machine type 'x64' conflicts with 'ARM64'")
+set(__qt_arm64_target FALSE)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64)$")
+    set(__qt_arm64_target TRUE)
+endif()
+if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID STREQUAL "ARM64")
+    set(__qt_arm64_target TRUE)
+endif()
+
 if(MSVC)
-    set(SupportWinXP "true" CACHE STRING "" FORCE)
-    set(YYTHUNKS_TARGET_OS "WinXP" CACHE STRING "" FORCE)
-    include(YY-Thunks)
-
-
-    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /subsystem:windows,5.01")
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /subsystem:windows,5.01")
+    if(__qt_arm64_target)
+        # ARM64: no XP support, no XP subsystem version. Let YY-Thunks.cmake
+        # select the arm64/Win10 obj if it is vendored, otherwise skip it.
+        set(SupportWinXP "false" CACHE STRING "" FORCE)
+        unset(YYTHUNKS_TARGET_OS CACHE)
+        unset(YYTHUNKS_FOUND CACHE)
+        unset(YYTHUNKS_OBJ_PATH CACHE)
+        include(YY-Thunks)
+        message("ARM64 target: Windows XP compatibility layer disabled "
+                "(ARM64 desktop starts at Windows 10 1709).")
     else()
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /subsystem:windows,5.02")
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /subsystem:windows,5.02")
-    endif() 
+        set(SupportWinXP "true" CACHE STRING "" FORCE)
+        set(YYTHUNKS_TARGET_OS "WinXP" CACHE STRING "" FORCE)
+        include(YY-Thunks)
 
-   message("CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS} ")
+        if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /subsystem:windows,5.01")
+            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /subsystem:windows,5.01")
+        else()
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /subsystem:windows,5.02")
+            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /subsystem:windows,5.02")
+        endif() 
+
+        message("CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS} ")
+    endif()
 endif()

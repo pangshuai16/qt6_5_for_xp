@@ -253,8 +253,10 @@ if (MSVC)
             #-Zc:preprocessor # breaks build due to bug in default Windows SDK 10.0.19041
         )
     endif()
-    if (MSVC_VERSION GREATER_EQUAL 1925 AND NOT CLANG) # Visual Studio 2019 version 16.5
+    if (MSVC_VERSION GREATER_EQUAL 1925 AND NOT CLANG AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64" AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64") # Visual Studio 2019 version 16.5
         target_compile_options(PlatformCommonInternal INTERFACE
+            # -QIntel-jcc-erratum is Intel-x86-only; MSVC reports D9002 (unknown option)
+            # for ARM64 targets, so skip it when cross-compiling for ARM64.
             $<$<CONFIG:Release>:-QIntel-jcc-erratum>
         )
     endif()

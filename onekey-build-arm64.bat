@@ -22,9 +22,22 @@ rem rd /s /q %BinaryFolder%
 
 mkdir %BinaryFolder%
 
-set PATH=%~dp0qtbase\bin;%PATH%
+set "PATH=%~dp0qtbase\bin;%PATH%"
 
-set CommonOptions=-G "Ninja Multi-Config" -DCMAKE_CONFIGURATION_TYPES=Release;Debug -DWindowsTargetPlatformMinVersion=6.0.6000.0 -DBUILD_SHARED_LIBS=ON -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF
+rem CROSS-COMPILE REQUIREMENTS (x64 host -> ARM64 target).
+rem ARM64 is cross-compiled here, so CMake must be told so explicitly:
+rem   - CMAKE_SYSTEM_PROCESSOR=ARM64  -> sets CMAKE_CROSSCOMPILING=TRUE, so Qt
+rem     reuses host tools instead of trying to build+run ARM64 syncqt.
+rem   - QT_HOST_PATH                  -> host tools (syncqt/moc/rcc) from a
+rem     previously built x64 install (onekey-build-x64.bat / -static.bat).
+rem Without these the configure step fails with
+rem   "syncqt.cpp failed for module QtZlib" (with an empty error message).
+set "QT_HOST_PATH=%~dp0Output\Binaries\x64"
+if not exist "%QT_HOST_PATH%\bin\syncqt.exe" set "QT_HOST_PATH=%~dp0Output\Binaries\x64-static"
+set "QT_HOST_PATH_CMAKE_DIR=%QT_HOST_PATH:/=%/lib/cmake"
+set "QT_HOST_PATH_CMAKE_DIR=%QT_HOST_PATH_CMAKE_DIR:\=/%"
+
+set CommonOptions=-G "Ninja Multi-Config" -DCMAKE_CONFIGURATION_TYPES=Release;Debug -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DWindowsTargetPlatformMinVersion=10.0.16299.0 -DBUILD_SHARED_LIBS=ON -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF -DQT_HOST_PATH="%QT_HOST_PATH%" -DQT_HOST_PATH_CMAKE_DIR="%QT_HOST_PATH_CMAKE_DIR%"
 
 mkdir %ObjectFolder%\qtbase
 pushd %ObjectFolder%\qtbase
